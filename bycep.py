@@ -80,14 +80,14 @@ def distancia_metros_entre_ceps(origem: str, destino: str):
     
     # Nem sempre o OSMR responde OK
     if response.status_code != 200:
-        print(f"error on request to OSMR {cep1} e {cep2}")
+        print(f"error on request to OSMR {origem} e {destino}")
         return None
 
     # Verifica se achou rotas entre os dois ceps. 
     # Pode não encontrar quando distancia muito curta ou muito longa ou não tem rotas entre os ceps
     rotas = response.json()
     if not len(rotas['routes']) > 0:
-        print(f"Nenhuma rota entre os dois ceps {cep1} e {cep2} foi encontrada")
+        print(f"Nenhuma rota entre os dois ceps {origem} e {destino} foi encontrada")
         return None
 
     return rotas['routes'][0]['distance']
