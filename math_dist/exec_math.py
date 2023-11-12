@@ -1,5 +1,5 @@
 import pandas as pd
-from bycep import distancia_metros_entre_ceps
+from latlong_math_dist import distance
 from datetime import datetime, timedelta
 
 # Get start time in GMT-3 timezone
@@ -13,7 +13,7 @@ df['cep_destino'] = ['05424000']
 
 distancias = []
 for iloc, row in df.iterrows():
-    distancias.append(distancia_metros_entre_ceps(row['cep_origem'], row['cep_destino']))
+    distancias.append(distance(row['cep_origem'], row['cep_destino']))
 
 df['distancia_km'] = distancias
 

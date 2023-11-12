@@ -4,6 +4,7 @@ from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 import random
 from datetime import datetime, timedelta
+from math import cos, asin, sqrt, pi
 
 # Estrutura auxiliar para passar coordenadas tipadas
 Coordenadas = namedtuple("Coordenadas", "latitude longitude")
@@ -13,13 +14,19 @@ geolocator = Nominatim(user_agent="GetDistanceBetweenCeps" + str(random.randint(
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
 def format_endereco(endereco, sem_logradouro=False):
+    fe_start_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
+
     logradouro = endereco['street'] + ", "
     if sem_logradouro:
         logradouro = ''
 
+    fe_end_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
+    fe_exec_time = fe_end_gmt_minus_3_time - fe_start_gmt_minus_3_time
+    print(f"format_endereco execution time: {fe_exec_time}")
     return logradouro + endereco['neighborhood'] + ", " + endereco['city'] + " - " + endereco['state']
 
 def address_from_cep(cep: str):
+    afc_start_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
     # busca o endereco ou coordenada pelo CEP
     response = requests.get(f'https://brasilapi.com.br/api/cep/v2/{cep}') 
     
@@ -37,11 +44,15 @@ def address_from_cep(cep: str):
     # removendo conteúdo dos correios indicando qual é o lado da rua pelo CEP
     endereco['street'] = endereco['street'].split(" lado ")[0] 
 
+    afc_end_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
+    afc_exec_time = afc_end_gmt_minus_3_time - afc_start_gmt_minus_3_time
+    print(f"address_from_cep execution time: {afc_exec_time}")
     # formata o endereço para ficar apropriado apra o geopy
     return endereco, coordenadas
 
 
 def lat_long_from_cep(cep: str) -> Coordenadas:
+    llfc_start_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
     # busca CEP e faz um catch exception caso a request não tenha funcionado como esperado
     try:
         endereco, coord = address_from_cep(cep)
@@ -65,36 +76,17 @@ def lat_long_from_cep(cep: str) -> Coordenadas:
         print(f"both brasilAPI and geopy failed to find location for CEP: {cep}")
         return None, None
 
+    llfc_end_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
+    llfc_exec_time = llfc_end_gmt_minus_3_time - llfc_start_gmt_minus_3_time
+    print(f"lat_long_from_cep execution time: {llfc_exec_time}")
     return location.latitude, location.longitude
 
 
-# utilizando o método de ir de CARRO para calcular rotas entre os CEPS
-def distancia_metros_entre_ceps(origem: str, destino: str):
-    dmfc_start_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
-    lat1, long1 = lat_long_from_cep(origem)
-    lat2, long2 = lat_long_from_cep(destino)
+def distance(lat1, long1, lat2, long2):
+    r = 6371 # km
+    p = pi / 180
 
-    # se por acaso não achou as coordenadas de um dos dois ceps, retorna nulo
-    if not lat1 or not lat2:
-        return None
+    a = 0.5 - cos((lat2-lat1)*p)/2 + cos(lat1*p) * cos(lat2*p) * (1-cos((long2-long1)*p))/2
+    dist = 2 * r * asin(sqrt(a))
+    return dist
 
-    response = requests.get(f'https://routing.openstreetmap.de/routed-car/route/v1/driving/{long1},{lat1};{long2},{lat2}?overview=false')
-    
-    # Nem sempre o OSMR responde OK
-    if response.status_code != 200:
-        print(f"error on request to OSMR {origem} e {destino}")
-        return None
-
-    # Verifica se achou rotas entre os dois ceps. 
-    # Pode não encontrar quando distancia muito curta ou muito longa ou não tem rotas entre os ceps
-    rotas = response.json()
-    if not len(rotas['routes']) > 0:
-        print(f"Nenhuma rota entre os dois ceps {origem} e {destino} foi encontrada")
-        return None
-    distancia_km = (rotas['routes'][0]['distance'])/1000
-
-    dmfc_end_gmt_minus_3_time = datetime.utcnow() + timedelta(hours=-3)
-    dmfc_exec_time = dmfc_end_gmt_minus_3_time - dmfc_start_gmt_minus_3_time
-    print(f"Origem: {origem}. CEP Destino: {destino}.")
-    print(f"Execution time: {dmfc_exec_time}")
-    return distancia_km
